@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template, send_file, Response, url_for
 import yt_dlp
 import os
 import uuid
@@ -133,9 +133,6 @@ def download_youtube():
     })
 
 #==============================
-# Facebook route
-#==============================
-#==============================
 # Facebook download route
 #==============================
 @app.route("/download/facebook", methods=["POST"])
@@ -213,6 +210,37 @@ def serve_file(filename):
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
     return "File not found", 404
+
+#==============================
+# SiteMap route
+#==============================
+
+@app.route("/sitemap.xml", methods=["GET"])
+def sitemap():
+    """Generate sitemap.xml dynamically."""
+    pages = [
+        "/", 
+        "/download/instagram", 
+        "/download/youtube",
+        "/download/facebook"
+    ]
+    
+    sitemap_xml = ['<?xml version="1.0" encoding="UTF-8"?>',
+                   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    
+    for page in pages:
+        full_url = request.url_root[:-1] + page  # Build full URL
+        sitemap_xml.append("<url>")
+        sitemap_xml.append(f"<loc>{full_url}</loc>")
+        sitemap_xml.append(f"<changefreq>weekly</changefreq>")
+        sitemap_xml.append(f"<priority>0.8</priority>")
+        sitemap_xml.append("</url>")
+    
+    sitemap_xml.append("</urlset>")
+    
+    sitemap_str = "\n".join(sitemap_xml)
+    
+    return Response(sitemap_str, mimetype="application/xml")
 
 if __name__ == "__main__":
     app.run(debug=True)

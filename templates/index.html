@@ -234,6 +234,30 @@
         resultDiv.innerHTML = `<div class="text-danger">❌ Error: ${data.error}</div>`;
       }
     });
+    async function downloadYoutube(url, option) {
+  const loader = document.getElementById("loader");
+  loader.style.display = "flex"; // show loader
+
+  try {
+    let response = await fetch("/download/youtube", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, option })
+    });
+
+    let data = await response.json();
+    loader.style.display = "none"; // hide loader
+
+    if (data.success) {
+      window.location.href = data.download_url; // auto-download
+    } else {
+      alert("❌ Error: " + data.error);
+    }
+  } catch (err) {
+    loader.style.display = "none";
+    alert("❌ Request failed: " + err);
+  }
+}
   </script>
 </body>
 </html>

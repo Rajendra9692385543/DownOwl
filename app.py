@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, send_file
 import yt_dlp
 import os
 import uuid
-
+import imageio_ffmpeg as ffmpeg
 app = Flask(__name__)
 
 DOWNLOAD_FOLDER = "downloads"
@@ -59,6 +59,12 @@ def download_instagram():
     return jsonify({"success": True, "download_url": f"/file/{os.path.basename(filename)}"})
 
 # YouTube download route
+import os
+import uuid
+import imageio_ffmpeg as ffmpeg
+from flask import request, jsonify
+import yt_dlp
+
 @app.route("/download/youtube", methods=["POST"])
 def download_youtube():
     data = request.get_json()
@@ -68,33 +74,66 @@ def download_youtube():
     if not url:
         return jsonify({"success": False, "error": "No URL provided"})
 
-    # Default yt-dlp options
+    ffmpeg_path = ffmpeg.get_ffmpeg_exe()
+    unique_id = str(uuid.uuid4())
+
     opts = {
-        "outtmpl": f"{DOWNLOAD_FOLDER}/%(id)s.%(ext)s",
-        "ffmpeg_location": "/usr/bin/ffmpeg",  # Required for Render free plan
-        "noplaylist": True,  # Only single video/short
+        "outtmpl": f"{DOWNLOAD_FOLDER}/{unique_id}.%(ext)s",
+        "ffmpeg_location": ffmpeg_path,
+        "noplaylist": True,
+        "quiet": True,
+        "merge_output_format": "mp4",
     }
 
     if option == "audio":
         opts.update({
-            "format": "bestaudio/best",
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }],
+            "format": "bestaudio[ext=m4a]/bestaudio",
+            "postprocessors": [
+                {   # Extract audio as mp3
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                },
+                {   # Normalize / boost audio after extraction
+                    "key": "FFmpegMetadata",
+                },
+                {
+                    "key": "FFmpegAudioFix",
+                }
+            ],
         })
-    else:  # Audio + Video
+        final_ext = "mp3"
+    else:
+        # Video (max 1080p) + audio merged
         opts.update({
-            "format": "bestvideo+bestaudio/best",
-            "merge_output_format": "mp4",
+            "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[height<=1080]",
+            "postprocessors": [
+                {   # Ensure metadata is written
+                    "key": "FFmpegMetadata",
+                },
+                {
+                    "key": "FFmpegVideoConvertor",
+                    "preferedformat": "mp4"
+                }
+            ],
         })
+        final_ext = "mp4"
 
-    filename, error = download_with_yt_dlp(url, opts)
-    if error:
-        return jsonify({"success": False, "error": error})
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = os.path.join(DOWNLOAD_FOLDER, f"{unique_id}.{final_ext}")
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
-    return jsonify({"success": True, "download_url": f"/file/{os.path.basename(filename)}"})
+    if not os.path.exists(filename):
+        return jsonify({"success": False, "error": "Download failed or file not found."})
+
+    return jsonify({
+        "success": True,
+        "download_url": f"/file/{os.path.basename(filename)}"
+    })
+
 
 # Facebook route
 @app.route("/download/facebook", methods=["POST"])

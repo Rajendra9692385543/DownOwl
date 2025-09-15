@@ -135,23 +135,74 @@ def download_youtube():
 #==============================
 # Facebook route
 #==============================
+#==============================
+# Facebook download route
+#==============================
 @app.route("/download/facebook", methods=["POST"])
 def download_facebook():
     data = request.get_json()
     url = data.get("url")
+    option = data.get("option")  # 'audio' or 'video'
+
     if not url:
         return jsonify({"success": False, "error": "No URL provided"})
 
-    # Video + audio merging
+    ffmpeg_path = ffmpeg.get_ffmpeg_exe()
+    unique_id = str(uuid.uuid4())
+
     opts = {
-        "outtmpl": f"{DOWNLOAD_FOLDER}/%(id)s.%(ext)s",
-        "format": "bestvideo+bestaudio/best",
+        "outtmpl": f"{DOWNLOAD_FOLDER}/{unique_id}.%(ext)s",
+        "ffmpeg_location": ffmpeg_path,
+        "noplaylist": True,
+        "quiet": True,
         "merge_output_format": "mp4",
     }
-    filename, error = download_with_yt_dlp(url, opts)
-    if error:
-        return jsonify({"success": False, "error": error})
-    return jsonify({"success": True, "download_url": f"/file/{os.path.basename(filename)}"})
+
+    if option == "audio":
+        opts.update({
+            "format": "bestaudio[ext=m4a]/bestaudio",
+            "postprocessors": [
+                {   # Extract audio as mp3
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                },
+                {   # Add metadata
+                    "key": "FFmpegMetadata",
+                }
+            ],
+        })
+        final_ext = "mp3"
+    else:
+        # Video (max 1080p) + audio merged
+        opts.update({
+            "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[height<=1080]",
+            "postprocessors": [
+                {   # Ensure metadata is written
+                    "key": "FFmpegMetadata",
+                },
+                {
+                    "key": "FFmpegVideoConvertor",
+                    "preferedformat": "mp4"
+                }
+            ],
+        })
+        final_ext = "mp4"
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = os.path.join(DOWNLOAD_FOLDER, f"{unique_id}.{final_ext}")
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+    if not os.path.exists(filename):
+        return jsonify({"success": False, "error": "Download failed or file not found."})
+
+    return jsonify({
+        "success": True,
+        "download_url": f"/file/{os.path.basename(filename)}"
+    })
 
 #==============================
 # Serve downloaded files

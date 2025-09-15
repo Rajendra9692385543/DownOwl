@@ -15,14 +15,18 @@ def home():
 def download_with_yt_dlp(url, opts):
     """Helper function to download using yt_dlp and return filename or error"""
     try:
-        # Generate unique filename if not provided in outtmpl
+        # Ensure unique filename
         unique_id = str(uuid.uuid4())
         if "outtmpl" not in opts or "%(id)s" in opts["outtmpl"]:
             opts["outtmpl"] = f"{DOWNLOAD_FOLDER}/{unique_id}.%(ext)s"
 
+        # Use ffmpeg-python compatible postprocessor
+        if "ffmpeg_location" not in opts:
+            opts["ffmpeg_location"] = "/usr/bin/ffmpeg"  # Render Linux path
+
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            # Determine actual output file
+            # Get actual downloaded filename
             filename = ydl.prepare_filename(info)
         return filename, None
     except Exception as e:
@@ -58,8 +62,8 @@ def download_youtube():
     # Default yt-dlp options
     opts = {
         "outtmpl": f"{DOWNLOAD_FOLDER}/%(id)s.%(ext)s",
-        # Set ffmpeg location for Render
-        "ffmpeg_location": "/usr/bin/ffmpeg",  # Path in Render Linux container
+        "ffmpeg_location": "/usr/bin/ffmpeg",  # Required for Render free plan
+        "noplaylist": True,  # Only single video/short
     }
 
     if option == "audio":

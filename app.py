@@ -55,9 +55,11 @@ def download_youtube():
     if not url:
         return jsonify({"success": False, "error": "No URL provided"})
 
+    # Default yt-dlp options
     opts = {
         "outtmpl": f"{DOWNLOAD_FOLDER}/%(id)s.%(ext)s",
-        "noplaylist": True,  # avoid downloading playlists
+        # Set ffmpeg location for Render
+        "ffmpeg_location": "/usr/bin/ffmpeg",  # Path in Render Linux container
     }
 
     if option == "audio":
@@ -78,7 +80,7 @@ def download_youtube():
     filename, error = download_with_yt_dlp(url, opts)
     if error:
         return jsonify({"success": False, "error": error})
-    
+
     return jsonify({"success": True, "download_url": f"/file/{os.path.basename(filename)}"})
 
 # Facebook route

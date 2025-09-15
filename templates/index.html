@@ -123,6 +123,21 @@
     <div class="nav-link" data-platform="contact"><i class="bi bi-envelope-fill"></i> Contact</div>
   </div>
 
+  <!-- Owl Loader Modal -->
+  <div class="modal fade" id="owlLoader" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content bg-transparent border-0 shadow-none">
+        <div class="modal-body text-center">
+          <div class="spinner-border text-primary mb-3" role="status" style="width: 4rem; height: 4rem;">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <div class="fs-1">🦉</div>
+          <p class="mt-2 fw-bold">Fetching your video...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Main Content -->
   <div class="container d-flex align-items-center justify-content-center" style="min-height: 80vh; padding-top: 40px;">
     <div class="card p-4 text-center w-100" style="max-width: 500px;">
@@ -170,14 +185,25 @@
     const formLogo = document.getElementById('form-logo');
     const youtubeSelect = document.getElementById('youtubeOption');
 
+    let owlLoaderInstance;
+
+    function showOwlLoader() {
+      owlLoaderInstance = new bootstrap.Modal(document.getElementById('owlLoader'));
+      owlLoaderInstance.show();
+    }
+
+    function hideOwlLoader() {
+      if (owlLoaderInstance) {
+        owlLoaderInstance.hide();
+      }
+    }
+
     navLinks.forEach(link => {
       link.addEventListener('click', () => {
         navLinks.forEach(l => l.classList.remove('active'));
         link.classList.add('active');
 
         const platform = link.getAttribute('data-platform');
-
-        // Reset YouTube select
         youtubeSelect.style.display = "none";
 
         if(platform === 'instagram') {
@@ -188,7 +214,7 @@
           formSubtitle.textContent = "Download YouTube Videos Instantly";
           urlInput.placeholder = "Paste YouTube video link here";
           formLogo.innerHTML = "🦉 <i class='bi bi-youtube'></i>";
-          youtubeSelect.style.display = "block"; // show option for YouTube
+          youtubeSelect.style.display = "block";
         } else if(platform === 'facebook') {
           formSubtitle.textContent = "Download Facebook Videos Quickly";
           urlInput.placeholder = "Paste Facebook video link here";
@@ -215,49 +241,32 @@
 
       let option = null;
       if(platform === 'youtube') {
-        option = youtubeSelect.value; // get selected audio/video option
+        option = youtubeSelect.value;
       }
 
-      resultDiv.innerHTML = "<div class='text-info'>Fetching video...</div>";
+      showOwlLoader(); // show loader
 
-      const res = await fetch(`/download/${platform}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, option })
-      });
+      try {
+        const res = await fetch(`/download/${platform}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, option })
+        });
 
-      const data = await res.json();
-      if (data.success) {
-        resultDiv.innerHTML =
-          `<a href="${data.download_url}" class="btn btn-success mt-2 w-100" target="_blank">✅ Click to Download</a>`;
-      } else {
-        resultDiv.innerHTML = `<div class="text-danger">❌ Error: ${data.error}</div>`;
+        const data = await res.json();
+        hideOwlLoader(); // hide loader after fetch
+
+        if (data.success) {
+          resultDiv.innerHTML =
+            `<a href="${data.download_url}" class="btn btn-success mt-2 w-100" target="_blank">✅ Click to Download</a>`;
+        } else {
+          resultDiv.innerHTML = `<div class="text-danger">❌ Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        hideOwlLoader();
+        resultDiv.innerHTML = `<div class="text-danger">❌ Request failed: ${err}</div>`;
       }
     });
-    async function downloadYoutube(url, option) {
-  const loader = document.getElementById("loader");
-  loader.style.display = "flex"; // show loader
-
-  try {
-    let response = await fetch("/download/youtube", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, option })
-    });
-
-    let data = await response.json();
-    loader.style.display = "none"; // hide loader
-
-    if (data.success) {
-      window.location.href = data.download_url; // auto-download
-    } else {
-      alert("❌ Error: " + data.error);
-    }
-  } catch (err) {
-    loader.style.display = "none";
-    alert("❌ Request failed: " + err);
-  }
-}
   </script>
 </body>
 </html>

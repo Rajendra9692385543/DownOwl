@@ -32,7 +32,9 @@ def download_with_yt_dlp(url, opts):
     except Exception as e:
         return None, str(e)
 
+#==============================
 # Instagram route
+#==============================
 @app.route("/download/instagram", methods=["POST"])
 def download_instagram():
     data = request.get_json()
@@ -58,13 +60,9 @@ def download_instagram():
 
     return jsonify({"success": True, "download_url": f"/file/{os.path.basename(filename)}"})
 
+#==============================
 # YouTube download route
-import os
-import uuid
-import imageio_ffmpeg as ffmpeg
-from flask import request, jsonify
-import yt_dlp
-
+#==============================
 @app.route("/download/youtube", methods=["POST"])
 def download_youtube():
     data = request.get_json()
@@ -134,8 +132,9 @@ def download_youtube():
         "download_url": f"/file/{os.path.basename(filename)}"
     })
 
-
+#==============================
 # Facebook route
+#==============================
 @app.route("/download/facebook", methods=["POST"])
 def download_facebook():
     data = request.get_json()
@@ -154,7 +153,9 @@ def download_facebook():
         return jsonify({"success": False, "error": error})
     return jsonify({"success": True, "download_url": f"/file/{os.path.basename(filename)}"})
 
+#==============================
 # Serve downloaded files
+#==============================
 @app.route("/file/<filename>")
 def serve_file(filename):
     file_path = os.path.join(DOWNLOAD_FOLDER, filename)

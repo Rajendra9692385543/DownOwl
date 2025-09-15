@@ -1,5 +1,5 @@
 
-# Video Downloader Web App
+# DownOwl - Video Downloader Web App
 
 This is a Flask-based web application that allows users to download videos or audio from **YouTube, Facebook, and Instagram**.
 It uses **yt-dlp** and **FFmpeg** under the hood to fetch, merge, and process the media.

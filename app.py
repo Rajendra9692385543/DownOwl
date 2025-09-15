@@ -37,16 +37,25 @@ def download_with_yt_dlp(url, opts):
 def download_instagram():
     data = request.get_json()
     url = data.get("url")
+    cookies = data.get("cookies")  # Optional: path to cookies.txt or None
+
     if not url:
         return jsonify({"success": False, "error": "No URL provided"})
 
+    # Default yt-dlp options
     opts = {
         "outtmpl": f"{DOWNLOAD_FOLDER}/%(id)s.%(ext)s",
         "format": "mp4",
     }
+
+    # Add cookies if provided
+    if cookies:
+        opts["cookies"] = cookies
+
     filename, error = download_with_yt_dlp(url, opts)
     if error:
         return jsonify({"success": False, "error": error})
+
     return jsonify({"success": True, "download_url": f"/file/{os.path.basename(filename)}"})
 
 # YouTube download route

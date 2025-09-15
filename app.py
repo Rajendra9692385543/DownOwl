@@ -68,6 +68,7 @@ def download_youtube():
     data = request.get_json()
     url = data.get("url")
     option = data.get("option")  # 'audio' or 'video'
+    cookies = data.get("cookies")  # Optional path to cookies.txt
 
     if not url:
         return jsonify({"success": False, "error": "No URL provided"})
@@ -75,6 +76,7 @@ def download_youtube():
     ffmpeg_path = ffmpeg.get_ffmpeg_exe()
     unique_id = str(uuid.uuid4())
 
+    # Base yt-dlp options
     opts = {
         "outtmpl": f"{DOWNLOAD_FOLDER}/{unique_id}.%(ext)s",
         "ffmpeg_location": ffmpeg_path,
@@ -82,6 +84,10 @@ def download_youtube():
         "quiet": True,
         "merge_output_format": "mp4",
     }
+
+    # Add cookies if provided
+    if cookies:
+        opts["cookies"] = cookies
 
     if option == "audio":
         opts.update({
@@ -92,10 +98,10 @@ def download_youtube():
                     "preferredcodec": "mp3",
                     "preferredquality": "192",
                 },
-                {   # Normalize / boost audio after extraction
+                {   # Add metadata
                     "key": "FFmpegMetadata",
                 },
-                {
+                {   # Fix audio issues
                     "key": "FFmpegAudioFix",
                 }
             ],
@@ -106,10 +112,10 @@ def download_youtube():
         opts.update({
             "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[height<=1080]",
             "postprocessors": [
-                {   # Ensure metadata is written
+                {   # Ensure metadata
                     "key": "FFmpegMetadata",
                 },
-                {
+                {   # Convert to mp4 container
                     "key": "FFmpegVideoConvertor",
                     "preferedformat": "mp4"
                 }
@@ -120,6 +126,7 @@ def download_youtube():
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
+            # Prepare filename
             filename = os.path.join(DOWNLOAD_FOLDER, f"{unique_id}.{final_ext}")
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
